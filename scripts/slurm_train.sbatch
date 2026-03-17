@@ -46,7 +46,7 @@ echo "Master: $MASTER_ADDR:$MASTER_PORT"
 
 # ── Experiment identity (override via --export) ──────────────────────────────
 MODEL_SIZE=${MODEL_SIZE:-"30M"}
-TOKENIZER_PATH=${TOKENIZER_PATH:-"/capstor/store/cscs/swissai/a139/saibo_uniscale/out/tokenizers/bpe_apertus_128k"}
+TOKENIZER_PATH=${TOKENIZER_PATH:-"/iopsstor/scratch/cscs/jtempus/tokenisation_lp/rounded_tokenizers_apertus_2/20260306_124806_vocab_131072/lp_131072_bias"}
 SEED=${SEED:-42}
 OUTPUT_DIR=${OUTPUT_DIR:-"out/experiments"}
 CONTAINER_ENV=${CONTAINER_ENV:-"pytorch_210_env"}
@@ -83,8 +83,18 @@ echo "Output:                   $OUTPUT_DIR"
 echo "======================================================================"
 
 
+# ── Load secrets ─────────────────────────────────────────────────────────────
+ENV_FILE="${HOME}/.env.local"
+if [[ -f "$ENV_FILE" ]]; then
+    set -a; source "$ENV_FILE"; set +a
+    echo "Loaded secrets from $ENV_FILE"
+else
+    echo "WARNING: $ENV_FILE not found — WANDB_API_KEY may be unset"
+fi
+
+
 # Set Python path to pre-installed venv
-PYTHON_PATH="/iopsstor/scratch/cscs/saibogeng/venvs/uniscale/bin/python"
+PYTHON_PATH="/iopsstor/scratch/cscs/jtempus/venvs/uniscale/bin/python"
 echo "Using Python: $PYTHON_PATH"
 
 # ── Training ─────────────────────────────────────────────────────────────────
@@ -94,9 +104,9 @@ srun --environment=$CONTAINER_ENV \
      bash -c "
     echo '[Rank \$SLURM_PROCID / LocalRank \$SLURM_LOCALID] Starting...' && \
     cd $SLURM_SUBMIT_DIR || { echo 'ERROR: cd to $SLURM_SUBMIT_DIR failed'; exit 1; } && \
-    RANK=\$SLURM_PROCID LOCAL_RANK=\$SLURM_LOCALID $PYTHON_PATH src/uniscale/models/train_lm.py \
+    WANDB_API_KEY=$WANDB_API_KEY WANDB_ENTITY="tempus-apertus" RANK=\$SLURM_PROCID LOCAL_RANK=\$SLURM_LOCALID $PYTHON_PATH src/uniscale/models/train_lm.py \
         --model_size $MODEL_SIZE \
-        --tokenizer_path $TOKENIZER_PATH \
+        --tokenizer_path \"$TOKENIZER_PATH\" \
         --train_dir $TRAIN_DIR \
         --eval_docs $EVAL_DOCS \
         --seed $SEED \
