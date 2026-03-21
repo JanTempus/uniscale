@@ -33,10 +33,15 @@ def main():
     out.mkdir(parents=True, exist_ok=True)
 
     print(f"Listing files in {args.repo_id} ...")
-    all_files = sorted(
-        f for f in list_repo_files(args.repo_id, repo_type="dataset")
-        if f.endswith(".parquet") and "train-" in f
-    )
+    all_repo_files = list(list_repo_files(args.repo_id, repo_type="dataset"))
+    parquet_files = [f for f in all_repo_files if f.endswith(".parquet")]
+    print(f"  Found {len(all_repo_files)} total files, {len(parquet_files)} parquet files")
+    if parquet_files:
+        print(f"  Sample parquet paths: {parquet_files[:5]}")
+    all_files = sorted(f for f in parquet_files if "train-" in f)
+    if not all_files:
+        # Fallback: try all parquet files if none match "train-"
+        all_files = sorted(parquet_files)
     if not all_files:
         raise RuntimeError(f"No train parquet files found in {args.repo_id}")
 
